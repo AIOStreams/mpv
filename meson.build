@@ -862,6 +862,21 @@ if features['avfoundation']
     sources += files('audio/out/ao_avfoundation.m')
 endif
 
+vo_avfoundation_frameworks = ['AVFoundation', 'CoreMedia', 'CoreVideo',
+                             'CoreImage', 'QuartzCore', 'Metal']
+if cc.has_header('UIKit/UIKit.h')
+    vo_avfoundation_frameworks += ['UIKit']
+elif cc.has_header('AppKit/AppKit.h')
+    vo_avfoundation_frameworks += ['AppKit']
+endif
+vo_avfoundation = dependency('appleframeworks', modules: vo_avfoundation_frameworks,
+                             required: get_option('vo-avfoundation'))
+features += {'vo-avfoundation': vo_avfoundation.found()}
+if features['vo-avfoundation']
+    dependencies += vo_avfoundation
+    sources += files('video/out/vo_avfoundation.m')
+endif
+
 coreaudio = dependency('appleframeworks', modules: ['CoreFoundation', 'CoreAudio',
                        'AudioUnit', 'AudioToolbox'], required: get_option('coreaudio'))
 features += {'coreaudio': coreaudio.found()}
