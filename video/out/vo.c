@@ -46,6 +46,7 @@
 #include "osdep/io.h"
 #include "osdep/threads.h"
 
+extern const struct vo_driver video_out_avfoundation;
 extern const struct vo_driver video_out_mediacodec_embed;
 extern const struct vo_driver video_out_x11;
 extern const struct vo_driver video_out_vdpau;
@@ -69,6 +70,9 @@ extern const struct vo_driver video_out_kitty;
 
 static const struct vo_driver *const video_out_drivers[] =
 {
+#if HAVE_VO_AVFOUNDATION
+    &video_out_avfoundation,
+#endif
     // high-quality and well-supported VOs first:
     &video_out_gpu_next,
     &video_out_gpu,
