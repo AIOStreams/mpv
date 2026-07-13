@@ -1156,6 +1156,22 @@ static void tag_pixel_buffer_color_metadata(CVPixelBufferRef pixbuf,
         set_colorspace_from_attachments(pixbuf);
 }
 
+static void restore_dolby_vision_transfer(CVPixelBufferRef pixbuf,
+                                          const struct mp_image_params *params)
+{
+    if (!pixbuf || params->repr.sys != PL_COLOR_SYSTEM_DOLBYVISION)
+        return;
+    if (!CVBufferGetAttachment(pixbuf, CFSTR("DolbyVisionRPUData"), NULL) ||
+        CVBufferGetAttachment(pixbuf, kCVImageBufferTransferFunctionKey, NULL))
+        return;
+
+    CFStringRef transfer = get_cv_transfer_function(params->color.transfer);
+    if (transfer) {
+        CVBufferSetAttachment(pixbuf, kCVImageBufferTransferFunctionKey,
+                              transfer, kCVAttachmentMode_ShouldPropagate);
+    }
+}
+
 static void tag_pixel_buffer_pixel_aspect(struct vo *vo, CVPixelBufferRef pixbuf)
 {
     if (!pixbuf || !vo->params)
@@ -3095,6 +3111,11 @@ static CMSampleBufferRef create_video_sample_buffer(struct vo *vo, mp_image_t *m
         // DVD/anamorphic sources carry their display aspect in the sample aspect
         // ratio; AVSampleBufferDisplayLayer only honors it via a buffer attachment.
         tag_pixel_buffer_pixel_aspect(vo, finalBuffer);
+
+        // Profile 5 may retain its RPU while losing VideoToolbox's PQ tag.
+        // Its color primaries and matrix must remain unspecified.
+        if (mpi->imgfmt == IMGFMT_VIDEOTOOLBOX && finalBuffer == pixbuf)
+            restore_dolby_vision_transfer(finalBuffer, &mpi->params);
 
         // The format description is stable across frames from the same pool;
         // CMVideoFormatDescriptionMatchesImageBuffer compares dimensions,
