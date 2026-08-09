@@ -3769,7 +3769,13 @@ static int control(struct vo *vo, uint32_t request, void *data)
         sync_osd_layer_frame(vo);
         return VO_TRUE;
     case VOCTRL_RESET:
-        // Called when playback stops or video changes
+        // Fired by vo_seek_reset() on every seek (and on stop/track change).
+        // Flush queued-but-undisplayed samples without removing the on-screen
+        // frame: removing it blanks the layer to black until the first
+        // post-seek frame survives demux+decode, a visible flash on every
+        // skip. Reference VOs (gpu/gpu-next) hold the last frame through
+        // seeks; the OSD layer still drops so stale subtitles don't linger
+        // over the held frame.
         clear_subtitle_state(vo);
         p->not_ready_drop_count = 0;
         p->last_not_ready_drop_ns = 0;
@@ -3781,7 +3787,7 @@ static int control(struct vo *vo, uint32_t request, void *data)
         reset_media_timing(p);
         p->playback_paused = was_paused;
         p->timebase_paused = was_paused;
-        sample_buffer_renderer_flush(p->displayLayer, true);
+        sample_buffer_renderer_flush(p->displayLayer, false);
         sample_buffer_renderer_flush(p->osdLayer, true);
         if (p->presentation_host && p->timebase) {
             // Fresh host-time samples arrive with future timestamps; the
