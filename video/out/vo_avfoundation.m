@@ -415,6 +415,9 @@ struct priv {
     // Avoid logging every frame if geometry rendering repeatedly fails.
     bool geometry_render_failure_logged;
 
+    // One-shot log for refusing geometry rendering on Dolby Vision frames.
+    bool dovi_geometry_skip_logged;
+
     // App-active presentation resync (iOS/tvOS). The system suspends the
     // autonomous AVSampleBufferDisplayLayer on resign-active without setting
     // requiresFlushToResumeDecoding, so we force a layer recovery on resume.
@@ -3289,6 +3292,20 @@ static CMSampleBufferRef create_video_sample_buffer(struct vo *vo, mp_image_t *m
         bool needsRelease = false;
 
         bool applyGeometry = should_apply_video_geometry(vo);
+        // Apple Dolby Vision passthrough buffers (native dvh1 decode) carry
+        // per-frame RPU metadata that only survives an untouched enqueue; a
+        // Core Image re-render feeds the DV display pipeline frames the RPU
+        // no longer describes and the picture collapses to near-black.
+        // Prefer an unzoomed but correct picture.
+        if (applyGeometry && pixbuf &&
+            CVBufferGetAttachment(pixbuf, CFSTR("DolbyVisionRPUData"), NULL)) {
+            if (!p->dovi_geometry_skip_logged) {
+                MP_WARN(vo, "Dolby Vision passthrough frame; ignoring video "
+                            "zoom/pan instead of destroying DV output\n");
+                p->dovi_geometry_skip_logged = true;
+            }
+            applyGeometry = false;
+        }
         if (applyGeometry) {
             CVPixelBufferRef rendered = render_video_geometry_frame(vo, pixbuf, p->has_subtitle);
             if (rendered) {
