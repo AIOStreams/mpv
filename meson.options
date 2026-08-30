@@ -107,6 +107,7 @@ option('gl-dxinterop-d3d9', type: 'feature', value: 'auto', description: 'OpenGL
 option('ios-gl', type: 'feature', value: 'auto', description: 'iOS OpenGL ES interop support')
 option('videotoolbox-gl', type: 'feature', value: 'auto', description: 'Videotoolbox with OpenGL')
 option('videotoolbox-pl', type: 'feature', value: 'auto', description: 'Videotoolbox with libplacebo')
+option('moltenvk', type: 'feature', value: 'auto', description: 'Moltenvk context')
 
 # macOS features
 option('macos-10-15-4-features', type: 'feature', value: 'auto', description: 'macOS 10.15.4 SDK Features')
