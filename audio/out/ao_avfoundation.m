@@ -250,7 +250,9 @@ static int init(struct ao *ao)
     }
 
     if (ao->device && ao->device[0]) {
+#if TARGET_OS_OSX
         [p->renderer setAudioOutputDeviceUniqueID:(NSString*)cfstr_from_cstr(ao->device)];
+#endif
     }
 
     [p->synchronizer addRenderer:p->renderer];

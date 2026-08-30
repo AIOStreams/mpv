@@ -877,8 +877,8 @@ if features['audiounit'] or features['coreaudio'] or features['avfoundation']
                      'audio/out/ao_coreaudio_utils.c')
 endif
 
-if features['avfoundation']
-    sources += files('audio/out/ao_coreaudio_properties.c')
+if not features['cocoa'] and (features['audiounit'] or features['avfoundation'])
+    sources += files('osdep/utils-mac.c')
 endif
 
 jack_opt = get_option('jack').require(
