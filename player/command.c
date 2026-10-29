@@ -8463,6 +8463,7 @@ void mp_option_run_callback(struct MPContext *mpctx, struct mp_option_callback *
         // For subs on a still image.
         redraw_subs(mpctx);
         osd_changed(mpctx->osd);
+        mpctx->osd_option_changed = true;
     }
 
     if (flags & UPDATE_BUILTIN_SCRIPTS)

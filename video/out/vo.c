@@ -173,6 +173,8 @@ struct vo_internal {
 
     bool rendering;                 // true if an image is being rendered
     struct vo_frame *frame_queued;  // should be drawn next
+    int64_t osd_moving_until;       // the OSD keeps changing while playing until then
+    int64_t defer_until;            // when the queued frame is drawn, held while the OSD moves
     int req_frames;                 // VO's requested value of num_frames
     int frame_refs;                 // max frames the VO may reference at once
     uint64_t current_frame_id;
@@ -919,6 +921,28 @@ static void wait_until(struct vo *vo, int64_t target)
     mp_mutex_unlock(&in->lock);
 }
 
+// While the OSD keeps changing, as when a player slides subtitles every
+// display frame, the frame showing is redrawn with it until the queued one is
+// nearly due, rather than the queued one drawn at once and held until then.
+static bool hold_queued(struct vo *vo)
+{
+    struct vo_internal *in = vo->in;
+    struct vo_frame *next = in->frame_queued;
+    int64_t now = mp_time_ns();
+    in->defer_until = 0;
+    if (in->paused || next->display_synced || !in->current_frame ||
+        now >= in->osd_moving_until ||
+        (vo->driver->caps & (VO_CAP_NORETAIN | VO_CAP_UNTIMED)))
+        return false;
+    // A vsync to draw it in, and some room.
+    int64_t draw_by = next->pts - in->flip_queue_offset -
+                      (int64_t)in->vsync_interval - MP_TIME_MS_TO_NS(4);
+    if (draw_by <= now)
+        return false;
+    in->defer_until = draw_by;
+    return true;
+}
+
 static bool render_frame(struct vo *vo)
 {
     struct vo_internal *in = vo->in;
@@ -928,6 +952,9 @@ static bool render_frame(struct vo *vo)
     update_display_fps(vo);
 
     mp_mutex_lock(&in->lock);
+
+    if (in->frame_queued && hold_queued(vo))
+        goto done;
 
     if (in->frame_queued) {
         talloc_free(in->current_frame);
@@ -1150,6 +1177,8 @@ static MP_THREAD_VOID vo_thread(void *ptr)
         int64_t wakeup_core_after = 0;
 
         mp_mutex_lock(&in->lock);
+        if (in->defer_until)
+            wait_until = MPMIN(wait_until, in->defer_until);
         if (in->wakeup_pts) {
             if (in->wakeup_pts > now) {
                 wait_until = MPMIN(wait_until, in->wakeup_pts);
@@ -1191,7 +1220,7 @@ static MP_THREAD_VOID vo_thread(void *ptr)
                 do_redraw(vo); // now is a good time
                 vo->previous_redraw_time = now;
             } else {
-                wait_vo(vo, now + max_interval);
+                wait_vo(vo, MPMIN(now + max_interval, wait_until));
             }
             continue;
         }
@@ -1259,6 +1288,9 @@ void vo_redraw(struct vo *vo)
 {
     struct vo_internal *in = vo->in;
     mp_mutex_lock(&in->lock);
+    // While playing, the player asks for one only as an option changes the OSD.
+    if (!in->paused)
+        in->osd_moving_until = mp_time_ns() + MP_TIME_MS_TO_NS(150);
     if (!in->request_redraw) {
         in->request_redraw = true;
         in->want_redraw = false;

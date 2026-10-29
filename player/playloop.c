@@ -679,8 +679,10 @@ static void handle_osd_redraw(struct MPContext *mpctx)
     if (!mpctx->video_out || !mpctx->video_out->config_ok || (mpctx->playing && mpctx->stop_play))
         return;
     // If we're playing normally, let OSD be redrawn naturally as part of
-    // video display.
-    if (!mpctx->paused) {
+    // video display. An option that changes how subtitles or the OSD look
+    // shows at once: a player that moves subtitles sets one every display
+    // frame, and the next frame of film is a few display frames away.
+    if (!mpctx->paused && !mpctx->osd_option_changed) {
         if (mpctx->sleeptime < 0.1 && mpctx->video_status == STATUS_PLAYING)
             return;
     }
@@ -690,6 +692,7 @@ static void handle_osd_redraw(struct MPContext *mpctx)
         mp_set_timeout(mpctx, 0.1);
         return;
     }
+    mpctx->osd_option_changed = false;
     bool want_redraw = osd_query_and_reset_want_redraw(mpctx->osd) ||
                        vo_want_redraw(mpctx->video_out);
     if (!want_redraw)
