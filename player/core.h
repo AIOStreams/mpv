@@ -403,6 +403,7 @@ typedef struct MPContext {
     double next_cache_update;
 
     double sleeptime;      // number of seconds to sleep before next iteration
+    bool osd_option_changed; // redraw without waiting for the next video frame
 
     double mouse_timer;
     unsigned int mouse_event_ts;
