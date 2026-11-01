@@ -477,6 +477,7 @@ static int reinit_audio_filters_and_output(struct MPContext *mpctx)
                 goto init_error;
             reset_audio_state(mpctx);
             mp_output_chain_reset_harder(ao_c->filter);
+            issue_refresh_seek(mpctx, MPSEEK_EXACT);
             mp_wakeup_core(mpctx); // reinit with new format next time
             return 0;
         }
